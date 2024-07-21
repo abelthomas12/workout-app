@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+<meta name="msapplication-TileColor" content="#da532c">
+<meta name="theme-color" content="#00796b">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; margin: 0; padding: 20px; background-color: #e0f7fa; }
+        .container { max-width: 800px; margin: auto; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); }
+        h1 { font-family: 'Roboto', sans-serif; color: #00796b; text-align: center; font-size: 36px; margin-bottom: 20px; }
+        .exercise { margin-bottom: 25px; }
+        .exercise h2 { margin: 0; font-family: 'Roboto', sans-serif; color: #004d40; font-size: 28px; }
+        .sets { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .sets button { padding: 12px; font-size: 18px; border: none; background-color: #00796b; color: #fff; border-radius: 8px; cursor: pointer; flex: 1; transition: background-color 0.3s; }
+        .sets button.deselected { background-color: #d3d3d3; cursor: not-allowed; }
+        .sets button:hover:not(.deselected) { background-color: #004d40; }
+        .sets input { padding: 12px; font-size: 18px; border: 1px solid #ccc; border-radius: 8px; width: 100px; }
+        .timer { margin-top: 15px; font-size: 20px; color: #004d40; padding: 10px; background: #e0f2f1; border: 2px solid #004d40; border-radius: 8px; text-align: center; }
+        .finish-button { display: block; margin: 20px 0; padding: 15px 25px; font-size: 18px; border: none; background-color: #00796b; color: #fff; border-radius: 8px; cursor: pointer; text-align: center; transition: background-color 0.3s; }
+        .finish-button:hover { background-color: #004d40; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Workout</h1>
+        <div id="workoutContainer"></div>
+        <button class="finish-button" onclick="finishWorkout()">Finish Workout</button>
+    </div>
+
+    <script>
+        const workouts = {
+            A: [
+                { name: 'Hack Squats', sets: 5 },
+                { name: 'Bench Press', sets: 5 },
+                { name: 'Barbell Row', sets: 5 },
+                { name: 'Romanian Deadlift', sets: 5 }
+            ],
+            B: [
+                { name: 'Hack Squats', sets: 5 },
+                { name: 'Overhead Press', sets: 5 },
+                { name: 'Deadlift', sets: 1 },
+                { name: 'Romanian Deadlift', sets: 5 }
+            ]
+        };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const workoutType = urlParams.get('type') || 'A'; // Default to 'A' if type not found
+        const workout = workouts[workoutType];
+        const workoutContainer = document.getElementById('workoutContainer');
+
+        let currentTimer = null;
+
+        workout.forEach(exercise => {
+            const exerciseDiv = document.createElement('div');
+            exerciseDiv.className = 'exercise';
+            exerciseDiv.innerHTML = `<h2>${exercise.name}</h2><div class="sets"></div><div class="timer" style="display: none;"></div>`;
+            const setsContainer = exerciseDiv.querySelector('.sets');
+            const timerDiv = exerciseDiv.querySelector('.timer');
+            for (let i = 1; i <= exercise.sets; i++) {
+                const setButton = document.createElement('button');
+                setButton.textContent = `Set ${i}`;
+                setButton.onclick = () => {
+                    if (setButton.classList.contains('deselected')) {
+                        setButton.classList.remove('deselected');
+                        if (currentTimer) {
+                            clearInterval(currentTimer);
+                            currentTimer = null;
+                            timerDiv.style.display = 'none';
+                            timerDiv.textContent = '';
+                        }
+                    } else {
+                        setButton.classList.add('deselected');
+                        if (currentTimer) {
+                            clearInterval(currentTimer);
+                        }
+                        timerDiv.style.display = 'block';
+                        startTimer(exerciseDiv);
+                    }
+                };
+                setsContainer.appendChild(setButton);
+            }
+            const weightInput = document.createElement('input');
+            weightInput.type = 'number';
+            weightInput.placeholder = 'Weight (lbs)';
+            setsContainer.appendChild(weightInput);
+            workoutContainer.appendChild(exerciseDiv);
+        });
+
+        let startTime = Date.now();
+
+        function startTimer(exerciseDiv) {
+            const timerDiv = exerciseDiv.querySelector('.timer');
+            let timeLeft = 120;
+            currentTimer = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(currentTimer);
+                    timerDiv.textContent = 'Rest Time: 0:00';
+                } else {
+                    const minutes = Math.floor(timeLeft / 60);
+                    const seconds = timeLeft % 60;
+                    timerDiv.textContent = `Rest Time: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                }
+                timeLeft--;
+            }, 1000);
+        }
+
+        function finishWorkout() {
+            const workoutData = {
+                workout: workoutType,
+                duration: Math.round((Date.now() - startTime) / 1000),
+                date: new Date().toISOString(),
+                exercises: []
+            };
+            document.querySelectorAll('.exercise').forEach(exerciseDiv => {
+                const exerciseName = exerciseDiv.querySelector('h2').textContent;
+                const weight = exerciseDiv.querySelector('input').value || 'N/A';
+                workoutData.exercises.push({ name: exerciseName, weight });
+            });
+            let savedWorkouts = JSON.parse(localStorage.getItem('savedWorkouts')) || [];
+            savedWorkouts.push(workoutData);
+            localStorage.setItem('savedWorkouts', JSON.stringify(savedWorkouts));
+            alert(`Workout completed in ${workoutData.duration} seconds.`);
+            window.location.href = 'index.html'; 
+        }
+    </script>
+</body>
+</html>

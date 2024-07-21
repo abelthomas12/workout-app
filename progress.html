@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+<meta name="msapplication-TileColor" content="#da532c">
+<meta name="theme-color" content="#00796b">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progress</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; margin: 0; padding: 20px; background-color: #e0f7fa; }
+        .container { max-width: 800px; margin: auto; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); }
+        .header { display: flex; align-items: center; justify-content: space-between; }
+        .header h1 { font-family: 'Roboto', sans-serif; color: #00796b; font-size: 36px; margin-bottom: 20px; flex: 1; text-align: center; }
+        .back-button { font-size: 24px; color: #00796b; text-decoration: none; cursor: pointer; }
+        .back-button:hover { color: #004d40; }
+        .chart-container { margin-top: 30px; }
+        svg { background: #e0f2f1; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 100%; height: 400px; }
+        .chart-title { color: #004d40; text-align: center; font-size: 24px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a class="back-button" href="index.html">&#8592;</a>
+            <h1>Progress</h1>
+        </div>
+        <div id="chartsContainer"></div>
+    </div>
+
+    <script>
+        function drawLineChart(data, exercise, minWeight, maxWeight) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const minDate = Math.min(...data.map(d => d.x.getTime()));
+            const maxDate = Math.max(...data.map(d => d.x.getTime()));
+
+            const chart = document.createElementNS(svgNS, "svg");
+            const viewBox = "0 0 600 400";
+            chart.setAttribute("viewBox", viewBox);
+
+            const padding = 50;
+            const xScale = d => padding + (d.x.getTime() - minDate) / (maxDate - minDate) * (600 - 2 * padding);
+            const yScale = d => 400 - padding - (d.y - minWeight) / (maxWeight - minWeight) * (400 - 2 * padding);
+
+            // Add axes lines
+            const xAxis = document.createElementNS(svgNS, "line");
+            xAxis.setAttribute("x1", padding);
+            xAxis.setAttribute("y1", 400 - padding);
+            xAxis.setAttribute("x2", 600 - padding);
+            xAxis.setAttribute("y2", 400 - padding);
+            xAxis.setAttribute("stroke", "#004d40");
+            xAxis.setAttribute("stroke-width", "2");
+
+            const yAxis = document.createElementNS(svgNS, "line");
+            yAxis.setAttribute("x1", padding);
+            yAxis.setAttribute("y1", padding);
+            yAxis.setAttribute("x2", padding);
+            yAxis.setAttribute("y2", 400 - padding);
+            yAxis.setAttribute("stroke", "#004d40");
+            yAxis.setAttribute("stroke-width", "2");
+
+            chart.appendChild(xAxis);
+            chart.appendChild(yAxis);
+
+            const linePath = data.map((d, i) => {
+                const x = xScale(d);
+                const y = yScale(d);
+                return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+            }).join(' ');
+
+            const path = document.createElementNS(svgNS, "path");
+            path.setAttribute("d", linePath);
+            path.setAttribute("stroke", "#00796b");
+            path.setAttribute("stroke-width", "3");
+            path.setAttribute("fill", "none");
+
+            const startCircle = document.createElementNS(svgNS, "circle");
+            startCircle.setAttribute("cx", xScale(data[0]));
+            startCircle.setAttribute("cy", yScale(data[0]));
+            startCircle.setAttribute("r", "5");
+            startCircle.setAttribute("fill", "#00796b");
+
+            const endCircle = document.createElementNS(svgNS, "circle");
+            endCircle.setAttribute("cx", xScale(data[data.length - 1]));
+            endCircle.setAttribute("cy", yScale(data[data.length - 1]));
+            endCircle.setAttribute("r", "5");
+            endCircle.setAttribute("fill", "#00796b");
+
+            const startText = document.createElementNS(svgNS, "text");
+            startText.setAttribute("x", xScale(data[0]) - 20);
+            startText.setAttribute("y", yScale(data[0]) - 10);
+            startText.setAttribute("fill", "#00796b");
+            startText.setAttribute("font-size", "14px");
+            startText.textContent = `${data[0].y} lbs`;
+
+            const endText = document.createElementNS(svgNS, "text");
+            endText.setAttribute("x", xScale(data[data.length - 1]) + 10);
+            endText.setAttribute("y", yScale(data[data.length - 1]) - 10);
+            endText.setAttribute("fill", "#00796b");
+            endText.setAttribute("font-size", "14px");
+            endText.textContent = `${data[data.length - 1].y} lbs`;
+
+            chart.appendChild(path);
+            chart.appendChild(startCircle);
+            chart.appendChild(endCircle);
+            chart.appendChild(startText);
+            chart.appendChild(endText);
+
+            return chart;
+        }
+
+        let savedWorkouts = JSON.parse(localStorage.getItem('savedWorkouts')) || [];
+        let exercises = {};
+        let allWeights = [];
+
+        savedWorkouts.forEach(workout => {
+            workout.exercises.forEach(ex => {
+                if (!exercises[ex.name]) {
+                    exercises[ex.name] = [];
+                }
+                if (ex.weight && ex.weight !== "N/A" && workout.date) {
+                    const dataPoint = {
+                        x: new Date(workout.date),
+                        y: parseFloat(ex.weight)
+                    };
+                    exercises[ex.name].push(dataPoint);
+                    allWeights.push(dataPoint.y);
+                }
+            });
+        });
+
+        const minWeight = Math.min(...allWeights);
+        const maxWeight = Math.max(...allWeights);
+
+        let chartsContainer = document.getElementById('chartsContainer');
+
+        Object.keys(exercises).forEach(exercise => {
+            let chartDiv = document.createElement('div');
+            chartDiv.className = 'chart-container';
+            chartDiv.innerHTML = `<h2 class="chart-title">${exercise}</h2>`;
+            let dataset = exercises[exercise];
+
+            if (dataset.length > 0) {
+                let chart = drawLineChart(dataset, exercise, minWeight, maxWeight);
+                chartDiv.appendChild(chart);
+            }
+
+            chartsContainer.appendChild(chartDiv);
+        });
+    </script>
+</body>
+</html>
